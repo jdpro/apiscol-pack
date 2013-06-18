@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<manifest identifier="com.scorm.golfsamples.contentpackaging.singlesco.20043rd" version="1" xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3" xmlns:adlseq="http://www.adlnet.org/xsd/adlseq_v1p3" xmlns:adlnav="http://www.adlnet.org/xsd/adlnav_v1p3" xmlns:imsss="http://www.imsglobal.org/xsd/imsss" xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 imscp_v1p1.xsd                               http://www.adlnet.org/xsd/adlcp_v1p3 adlcp_v1p3.xsd                               http://www.adlnet.org/xsd/adlseq_v1p3 adlseq_v1p3.xsd                               http://www.adlnet.org/xsd/adlnav_v1p3 adlnav_v1p3.xsd                               http://www.imsglobal.org/xsd/imsss imsss_v1p0.xsd" >
+  	<metadata>
+		<schema>ADL SCORM</schema>
+		<schemaversion>2004 4th Edition</schemaversion>
+	</metadata>
+  <!-- There is just one organization. The organization contains just one item.-->
+	<organizations default="cours_cintrage_cuivre">
+		<organization identifier="cours_cintrage_cuivre">
+		<metadata>
+			<schema>ADL SCORM</schema>
+			<schemaversion>2004 3rd Edition</schemaversion>
+			<adlcp:location>http://195.221.98.146:8080/meta/lom/2/e/a/81463-4489-42a6-9c05-e5b1f0b2b280.xml</adlcp:location>
+		</metadata>
+			<title>Golf Explained - CP Single SCO</title>
+			<item identifier="item_1" identifierref="urn:16e6a9fe-c958-4cab-b217-ebae8172556c">
+				<title>Golf Explained</title>
+			</item>
+		</organization>
+	</organizations>
+
+	<resources>
+		<resource identifier="http://localhost:8080/content/resource/16e6a9fe-c958-4cab-b217-ebae8172556c" type="webcontent" adlcp:scormType="sco" href="Etiquette/Course.html">
+      			<file href="Etiquette/Course.html"/>
+		</resource>
+	</resources>
+</manifest>

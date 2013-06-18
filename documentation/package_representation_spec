@@ -1,0 +1,19 @@
+<entry xmlns="http://www.w3.org/2005/Atom" xmlns:apiscol="http://www.crdp.ac-versailles.fr/2012/apiscol">
+	<updated>2012-12-17T14:44:33.000+01:00</updated> 		//obtenu depuis file.lastModified() puis TimeUtils.toRFC3339();
+	<id>urn:apiscol:example:meta:pack:80b4dc62-c4f7-4796-88c8-686e91e153c4 //example = apiscol_instance_name 
+	</id>
+	<author><name/></author>
+	<title>
+	Le titre du parcours
+	</title>
+	<content type="application/xml">
+		<apiscol:resources>
+			<apiscol:resource>http://apiscol-dev.crdp.ac-versailles.fr/content/resource/80b4dc62-c4f7-4796-88c8-686e91e153c4</apiscol:resource>
+			<apiscol:resource>http://apiscol-dev.crdp.ac-versailles.fr/content/resource/567tyud2-c4f7-4796-88c8-686e91e153c4</apiscol:resource>
+		</apiscol:resources>
+	</content>
+	<link href="http://apiscol-dev.crdp.ac-versailles.fr/pack/manifest/80b4dc62-c4f7-4796-88c8-686e91e153c4" rel="self" type="text/html"/>
+	<link href="http://apiscol-dev.crdp.ac-versailles.fr/pack/manifest/80b4dc62-c4f7-4796-88c8-686e91e153c4?format=xml" rel="self" type="application/atom+xml"/>
+	<link href="http://apiscol-dev.crdp.ac-versailles.fr/pack/manifests/8/0/b/4dc62-c4f7-4796-88c8-686e91e153c4.xml" rel="alternate" type="application/atom+xml"/>
+	<link href="http://apiscol-dev.crdp.ac-versailles.fr/pack/manifests/8/0/b/4dc62-c4f7-4796-88c8-686e91e153c4.js" rel="alternate" type="application/javascript"/>
+</entry>

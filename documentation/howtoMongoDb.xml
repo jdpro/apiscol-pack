@@ -1,0 +1,660 @@
+sudo [[PageOutline]]
+
+= Howto mongoDB =
+
+http://www.mongodb.org/display/DOCS/Home
+
+== Installation ==
+
+Version Debian :
+
+{{{
+# aptitude install mongodb
+}}}
+
+
+Mais il existe aussi des paquets Debian distribués par MongoDB. Pour cela on ajoutera la ligne suivante
+dans son fichier ''sources.list'' :
+
+{{{
+deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen
+}}}
+
+Puis :
+
+{{{
+# aptitude install mongodb-10gen
+}}}
+
+== Logrotate ==
+
+Les paquets fournis n'ont pas de logrotate !
+
+Voici un exemple de logrotate à mettre en place : 
+
+{{{
+/var/log/mongodb/*.log {
+    weekly
+    rotate 52
+    delaycompress
+    compress
+    notifempty
+    sharedscripts
+    create 640 root adm
+    missingok
+    postrotate
+        /bin/kill -USR1 `cat /var/lib/mongodb/mongod.lock 2>/dev/null` 2> /dev/null|| true
+    endscript
+}
+}}}
+== Configuration ==
+
+La configuration de MongoDB se trouve dans le fichier ''/etc/mongodb.conf'' :
+
+{{{
+bind_ip = 127.0.0.1
+port = 27017
+auth = true
+
+#cpu = true
+#verbose = true
+}}}
+
+ATTENTION : la configuration de MongoDB est '''très''' spéciale... si vous voulez désactiver les logs verbose
+par exemple, il ne faut pas faire ''verbose = false'' car ''verbose = NIMPORTEQUOI'' active les logs verbeux !!
+Il faut donc se méfier et suivre à lettre la documentation...
+
+== Authentification ==
+
+http://www.mongodb.org/display/DOCS/Security+and+Authentication
+
+MongoDB a deux modes de fonctionnement pour l'authentification :
+ * Un mode sans aucune authentification
+ * Un mode avec authentification
+
+=== Mode sans aucune authentification ===
+
+La configuration sans authentification se fait ainsi :
+
+{{{
+noauth = true
+}}}
+
+Dans ce mode, il n'y a besoin d'aucun login / mot de passe pour accéder à l'ensemble des dbs, données, etc.
+Ce mode est donc assez dangereux : il faut s'assurer que seuls des programmes de confiance accèdent
+au port TCP de MongoDB.
+
+=== Mode avec authentification ===
+
+ATTENTION, ce mode doit être correctement configuré (ce qui n'est pas le cas par défaut).
+
+La configuration doit donc être ainsi :
+
+{{{
+noauth = true
+}}}
+
+Mais surtout, il faut créer (au moins) un utilisateur "admin" :
+
+{{{
+$ mongo
+> use admin
+> db.addUser("mongoadmin", "PASS")
+{
+        "user" : "mongoadmin",
+        "readOnly" : false,
+        "pwd" : "3882eaa67064707a7a6ae872504f310d"
+}
+> db.system.users.find()
+{ "_id" : ObjectId("4e8e132c76a7c48c75393b81"), "user" : "mongoadmin", "readOnly" : false, "pwd" : "3882eaa67064707a7a6ae872504f310d" }
+}}}
+
+C'est seulement une fois ce premier utilisateur "admin" créé que l'authentication est activée !!
+Si il n'est pas créé, l'authentification reste inactive...
+
+On peut ensuite se connecter à la base "admin" ainsi :
+
+{{{
+$ mongo admin -u mongoadmin -p PASS
+}}}
+
+Pour les accès aux base, les utilisateurs sont stockés dans la collection ''system.users'' propre à chaque base.
+Ainsi pour créer un utilisateur pour une base données :
+
+{{{
+> use mydb
+> db.addUser("foo","PASS");
+}}}
+
+Les utilisateurs (admin ou associés à une base de données) peuvent n'avoir qu'un accès read-only si
+ils sont créés ainsi :
+
+{{{
+> db.addUser("foo","PASS",true);
+}}}
+
+Enfin, pour supprimer un utilisateur :
+
+{{{
+> use mydb
+> db.removeUser("foo");
+}}}
+
+== Utilisation ==
+
+En ligne de commande :
+
+{{{
+$ mongo
+MongoDB shell version: 1.4.4
+url: test
+connecting to: test
+type "help" for help
+}}}
+
+Voici les opérations de base :
+
+{{{
+> show dbs
+admin
+local
+test
+> use foo                                           
+switched to db foo
+> show collections
+> db.bar.find()
+> db.bar.save( { a : 1 } )
+> db.bar.save( { a : 2 } )
+> show collections
+bar
+system.indexes
+> db.bar.find()
+{ "_id" : ObjectId("4e64dbf619a27977131978ad"), "a" : 1 }
+{ "_id" : ObjectId("4e64dbf919a27977131978ae"), "a" : 2 }
+> db.foo.find({a:1})
+{ "_id" : ObjectId("4e0674a47888d8941034f4e1"), "a" : 1 }
+> db.foo.find().limit(1)
+{ "_id" : ObjectId("4e0674a47888d8941034f4e1"), "a" : 1 }
+> exit
+bye
+}}}
+
+Modifier un champ d'un objet existant :
+
+{{{
+> db.bar.save( { a : 4, b : 0 } )
+> db.bar.update( { "_id" : ObjectId("4e64de8a19a27977131978b0") } , { $set : {b:1} } )
+> db.bar.update( { "_id" : ObjectId("4e64de8a19a27977131978b0") } , { $unset : {b:1} } )
+}}}
+
+Voir uniquement certains champs :
+
+{{{
+> db.bar.find({a:1},{flip:1})
+> db.bar.find({a:1},{flip:1,flap:1})
+}}}
+
+Voir plus d'objets (en évitant le ''has more'') :
+
+{{{
+> DBQuery.shellBatchSize = 100
+> db.foo.find()
+}}}
+
+Requête sur des dates :
+
+{{{
+db.foo.find( { "date": {"$gte": ISODate("2011-12-05T00:21:00Z")} } )
+db.foo.find( { "date": {"$lt": ISODate("2011-12-05T04:00:00Z")} } )
+db.foo.find( { "date": {"$gte": ISODate("2011-12-05T00:21:00Z"), "$lt": ISODate("2011-12-05T04:00:00Z")} } )
+}}}
+
+En PHP :
+
+{{{
+$m = new Mongo();
+$db = $m->foo;
+$bar = $db->bar;
+$bar->insert(array("a"=>"1","a"=>"2"));
+$res = $bar->find();
+foreach ($res as $obj) {
+    echo $obj["a"] . "\n";
+}
+}}}
+
+== Sauvegarde ==
+
+http://www.mongodb.org/display/DOCS/Backups
+
+{{{
+# mkdir /home/backup/mongodump
+# cd /home/backup/mongodump
+# mongodump
+}}}
+
+== Réplication avec replica set ==
+
+La réplication avec "replica set" nécessite au moins 3 machines : en effet, il va y avoir une élection
+du master vers lequel seront faites toutes les écritures.
+
+Soit trois machines de test avec MongoDB 1.8.2 : mongo1 (PRIMARY), mongo2 (SECONDARY), mongo3 (SECONDARY)
+
+Activer le paramètre suivant dans /etc/mongodb.conf :
+
+{{{
+# in replica set configuration, specify the name of the replica set
+replSet = foo
+# Enable journaling (recommended for replica set)
+journal = true
+}}}
+
+À ce stade, on ne peut rien écrire sur les serveurs :
+
+{{{
+> db.test.insert({"coin": "coin"})
+not master
+> rs.status()
+{
+        "startupStatus" : 3,
+        "info" : "run rs.initiate(...) if not yet done for the set",
+        "errmsg" : "can't get local.system.replset config from self or any seed (EMPTYCONFIG)",
+        "ok" : 0
+}
+}}}
+
+
+Réinitialiser les bases sur chaque machine (attention, opération destructrice !) :
+
+{{{
+/etc/init.d/mongodb stop && mv /var/lib/mongodb/* /tmp && /etc/init.d/mongodb start
+}}}
+
+=== Sur mongo1 (PRIMARY) ===
+
+Il faut ensuite s'assurer que :
+- les machines communiquent bien au niveau réseau en TCP/27017
+- que les machines n'ont pas de NAT (ou alors il faudra utiliser des DNS)
+
+Puis on initialise la réplication via le mongo shell :
+
+{{{
+> config = {_id: 'foo' , members: [ {_id: 0, host: '1.2.3.4:27017'},{_id: 1, host: '1.2.3.5:27017'},{_id: 2, host: '1.2.3.6:27017'}]}
+> rs.initiate(config);
+          {
+        "info" : "Config now saved locally.  Should come online in about a minute.",
+        "ok" : 1
+}                                                
+> rs.help()
+}}}
+
+On peut aussi le faire étape par étape
+
+{{{
+> rs.initiate()
+{
+   "info2" : "no configuration explicitly specified -- making one",
+   "info" : "Config now saved locally.  Should come online in about a minute.",
+   "ok" : 1
+}
+}}}
+
+Ajout des 2 SECONDARY :
+
+{{{
+setname:PRIMARY> rs.add("mongo2")
+{ "ok" : 1 }
+
+setname:PRIMARY> rs.add("mongo3")
+{ "ok" : 1 }
+}}}
+
+Consultation de l'état de la réplication sur le master :
+
+{{{
+setname:PRIMARY> rs.status()
+{
+   "set" : "setname",
+   "date" : ISODate("2011-08-09T15:42:54Z"),
+   "myState" : 1,
+   "members" : [
+      {
+         "_id" : 0,
+         "name" : "mongo1",
+         "health" : 1,
+         "state" : 1,
+         "stateStr" : "PRIMARY",
+         "optime" : {
+            "t" : 1312904495000,
+            "i" : 1
+         },
+         "optimeDate" : ISODate("2011-08-09T15:41:35Z"),
+         "self" : true
+      },
+      {
+         "_id" : 1,
+         "name" : "mongo2",
+         "health" : 1,
+         "state" : 2,
+         "stateStr" : "SECONDARY",
+         "uptime" : 76,
+         "optime" : {
+            "t" : 1312904495000,
+            "i" : 1
+         },
+         "optimeDate" : ISODate("2011-08-09T15:41:35Z"),
+         "lastHeartbeat" : ISODate("2011-08-09T15:42:54Z")
+      },
+      {
+         "_id" : 2,
+         "name" : "mongo3",
+         "health" : 1,
+         "state" : 2,
+         "stateStr" : "SECONDARY",
+         "uptime" : 70,
+         "optime" : {
+            "t" : 1312904495000,
+            "i" : 1
+         },
+         "optimeDate" : ISODate("2011-08-09T15:41:35Z"),
+         "lastHeartbeat" : ISODate("2011-08-09T15:42:54Z")
+      }
+   ],
+   "ok" : 1
+}
+}}}
+
+Sur un slave :
+
+{{{
+SECONDARY> db.printReplicationInfo()
+this is a slave, printing slave replication info.
+source:   92.243.5.219:27017
+         syncedTo: Sun Jan 29 2012 22:34:07 GMT+0100 (CET)
+                 = 5744 secs ago (1.6hrs)
+source:   stampzz-prod01.evolix.net:27017
+         syncedTo: Mon Jan 30 2012 00:09:47 GMT+0100 (CET)
+                 = 4 secs ago (0hrs)
+SECONDARY> use local
+switched to db local
+SECONDARY> db.oplog.rs.stats()
+{
+        "ns" : "local.oplog.rs",
+        "count" : 9616448,
+        "size" : 1166277368,
+        "avgObjSize" : 121.27943373686418,
+        "storageSize" : 1320140800,
+        "numExtents" : 1,
+        "nindexes" : 0,
+        "lastExtentSize" : 1320140800,
+        "paddingFactor" : 1,
+        "flags" : 0,
+        "totalIndexSize" : 0,
+        "indexSizes" : {
+
+        },
+        "capped" : 1,
+        "max" : 2147483647,
+        "ok" : 1
+}
+}}}
+
+Création d'un enregistrement de test :
+
+{{{
+setname:PRIMARY> db.foo.save({a:1})
+setname:PRIMARY>
+}}}
+
+=== Sur mongo2 ou mongo3 (SECONDARY) ===
+
+Autorise le SECONDARY à traiter des requêtes :
+
+{{{
+setname:SECONDARY> rs.slaveOk()
+}}}
+
+Vérification de la présence de l'enregistrement de test :
+
+{{{
+setname:SECONDARY> db.foo.find()
+{ "_id" : ObjectId("4e41558da08ccc36090745be"), "a" : 1 }
+}}}
+
+=== Sortir un mongo de la réplication ===
+
+Voici les étapes pour sortir un mongo de la réplication :
+
+ 1. Sauvegarder (mongodump)
+ 2. Stopper MongoDB
+ 3. Sauvegarder les datas
+ 4. Supprimer les fichiers local.*
+ 5. Désactiver les replica dans la configuration
+ 6. Relancer MongoDB
+
+=== Resynchroniser un mongo slave ===
+
+En cas de soucis, il peut être nécessaire de resynchroniser complètement un serveur MongoDB
+par rapport à un master. Il suffit de supprimer complètement le ''dbpath'' :
+
+{{{
+# /etc/init.d/monogdb stop
+# mv /var/lib/mongodb /var/lib/mongodb.old
+# mkdir /var/lib/mongodb
+# chown mongodb:mongodb /var/lib/mongodb
+# chmod 750 /var/lib/mongodb
+# /etc/init.d/monogdb start
+}}}
+
+Le serveur slave repassera en RECOVERING puis en SECONDARY :
+
+{{{
+RECOVERING> db.printReplicationInfo()
+this is a slave, printing slave replication info.
+source:   master.example.com:27017
+         syncedTo: Thu Jan 01 1970 01:00:00 GMT+0100 (CET)
+                 = 1327878874 secs ago (368855.24hrs)
+source:   otherslave.example.com:27017
+         syncedTo: Mon Jan 30 2012 00:14:09 GMT+0100 (CET)
+                 = 25 secs ago (0.01hrs)
+SECONDARY> db.printReplicationInfo()
+configured oplog size:   1025.1384765625MB
+log length start to end: 741secs (0.21hrs)
+oplog first event time:  Mon Jan 30 2012 00:14:09 GMT+0100 (CET)
+oplog last event time:   Mon Jan 30 2012 00:26:30 GMT+0100 (CET)
+now:                     Mon Jan 30 2012 00:27:26 GMT+0100 (CET)
+}}}
+
+=== Erreurs de synchronisation ===
+
+En cas d'erreur du type :
+
+{{{
+    "optimeDate" : ISODate("2012-01-29T21:34:07Z"),
+    "lastHeartbeat" : ISODate("2012-01-29T23:02:43Z"),
+    "pingMs" : 11,
+    "errmsg" : "syncTail: 0 assertion db/pdfile.cpp:1881, syncing: { ts: Timestamp 1327872847000|109, h: -1582883220170752094, op: \"i\", ns: \"DB_MONGODB.tmp.mr.COLL_MONGODB_396779\", o: { _id: \"#colorsplash\", value: 1.0 } }"
+}}}
+
+Côté slave, on a plus de détails :
+
+{{{
+[rsSync] replHandshake res not: 1 res: { ok: 1.0 }
+[rsSync]  local.oplog.rs Assertion failure !loc.isNull() db/pdfile.cpp 1881
+0x57eeb6 0x589d6b 0x8a2746 0x82f486 0x821d8d 0x8231d8 0x82439a 0x824820 0xaa4560 0x7f1a33ef08ba 0x7f1a334ac02d
+ /usr/bin/mongod(_ZN5mongo12sayDbContextEPKc+0x96) [0x57eeb6]
+ /usr/bin/mongod(_ZN5mongo8assertedEPKcS1_j+0xfb) [0x589d6b]
+ /usr/bin/mongod() [0x8a2746]
+ /usr/bin/mongod(_ZN5mongo11_logOpObjRSERKNS_7BSONObjE+0x236) [0x82f486]
+ /usr/bin/mongod(_ZN5mongo11ReplSetImpl8syncTailEv+0xced) [0x821d8d]
+ /usr/bin/mongod(_ZN5mongo11ReplSetImpl11_syncThreadEv+0xc8) [0x8231d8]
+ /usr/bin/mongod(_ZN5mongo11ReplSetImpl10syncThreadEv+0x4a) [0x82439a]
+ /usr/bin/mongod(_ZN5mongo15startSyncThreadEv+0xa0) [0x824820]
+ /usr/bin/mongod(thread_proxy+0x80) [0xaa4560]
+ /lib/libpthread.so.0(+0x68ba) [0x7f1a33ef08ba]
+ /lib/libc.so.6(clone+0x6d) [0x7f1a334ac02d]
+[rsSync] replSet syncTail: 0 assertion db/pdfile.cpp:1881, syncing: { ts: Timestamp 1327872847000|109, h: -1582883220170752094, op: "i", ns: "DB_MONGODB.tmp.mr.COLL_MONGODB_396779", o: { _id: "#colorsplash", value: 1.0 } }
+}}}
+
+Cela semble être une corruption de la base côté slave...
+L'une des solutions consiste à resynchroniser complètement la base
+(voir plus haut).
+
+
+=== Forcer à changer de master ===
+
+{{{
+> rs.stepDown()
+}}}
+
+/!\ à ne faire que si les slaves sont synchros sous peine
+d'avoir un état rollback & ennuis...
+
+=== Etat ROLLBACK ===
+
+Master devient indispo alors que les slaves n'était pas 100% synchro
+
+http://www.mongodb.org/display/DOCS/Replica+Sets+-+Rollbacks
+http://dba.stackexchange.com/questions/18020/mongodb-replica-set-secondary-stuck-in-rollback-state
+http://comerford.cc/2012/05/28/simulating-rollback-on-mongodb/
+http://comments.gmane.org/gmane.comp.db.mongodb.user/78137
+
+ROLLBACK -> RECOVERY -> SECONDARY.. ou #FAIL avec Error RS102
+
+http://www.mongodb.org/display/DOCS/Resyncing+a+Very+Stale+Replica+Set+Member
+
+=== replicaset lag ===
+
+http://docs.mongodb.org/manual/administration/replica-sets/#replica-set-replication-lag
+http://metabroadcast.com/blog/mongodb-replication-lag-and-the-road-to-recovery
+
+
+== Réparer la base de données en cas de crash ==
+
+Plusieurs méthodes selon cas.
+
+ 1. Si la journalisation est activé, ce qui est le cas par défaut pour les version >1.9.2 et en 64 bits.
+MongoDB devrait automatiquement se servir des fichiers journaux, regardez si tout se passe bien dans les logs.
+Si malheureusement ce message apparaît : 
+
+{{{
+old lock file: mongod.lock.  probably means unclean shutdown,
+but there are no journal files to recover.
+}}}
+
+Il faut vérifier que le système de fichier est OK !
+
+ 2. Si la journalisation n'est pas activé.
+
+Supprimez le verrou et démarrer mongodb avec l'option pour lancer une réparation.
+
+{{{
+rm /var/lib/mongodb/mongod.lock
+mongod --dbpath /var/lib/mongodb/ --repairpath /tmp --repair
+}}}
+
+Vérifiez les droits du dbpath !
+
+{{{
+chown -R mongodb:mongodb /var/lib/mongodb
+}}}
+
+Démarrez mongodb, lancez un mongo shell et lancer une réparation de toutes les base de données.
+
+{{{
+db.repairDatabase();
+}}}
+
+== Mise à jour ==
+
+Voici la procédure pour passer en Mongo 2.0 (version sortie en sept/oct 2011) :
+
+{{{
+# aptitude update 
+# aptitude install mongodb-10gen
+}}}
+
+La version 2.0 active désormais par défaut la journalisation.
+Vous pouvez donc remplacer dans votre configuration :
+
+{{{
+journal = true
+}}}
+
+par :
+
+{{{
+# Disables write-ahead journaling
+# nojournal = true
+}}}
+
+Il faut également mettre-à-jour ses indexes ! On le fera via le mongo shell :
+
+{{{
+> use foo
+> db.bar.getIndexes()
+[
+        {
+                "key" : {
+                        "_id" : 1
+                },
+                "ns" : "foo.bar",
+                "name" : "_id_",
+                "v" : 0
+        }
+]
+}}}
+
+Le ''' "v" : 0 ''' signifie que l'index n'est pas à jour.
+
+{{{
+> db.runCommand({compact : 'bar'})
+{ "ok" : 1 }
+> db.bar.getIndexes()
+[
+        {
+                "v" : 1,
+                "key" : {
+                        "_id" : 1
+                },
+                "ns" : "foo.bar",
+                "name" : "_id_"
+        }
+]
+}}}
+
+Répéter l'opération pour toutes les collections ayant des indexes !
+
+
+== CAPPED ==
+
+http://www.mongodb.org/display/DOCS/Capped+Collections
+
+== Monitoring avec MMS ==
+
+MMS (MongoDB Monitoring Service) est une service fourni gratuitement par 10gen.
+
+=== Installation ===
+
+Créer un compte sur mms.10gen.com, créer un groupe et télécharger l'archive (qui contient déjà la clé API du groupe).
+
+La décompresser dans un dossier (et donner les droits mongodb).
+
+{{{
+cd /opt
+tar zxvf 10gen*.tar.gz
+chown -R mongodb:mongodb mms-agent
+}}}
+
+Installer python-bson et python-pymongo (via backports).
+
+/etc/apt/preferences:
+
+{{{
+Package: python-pymongo
+Pin: release a=squeeze-backports
+Pin-Priority: 999
+}}}
+
+Le lancer via le compte mongodb:
+
+sudo -u mongodb nohup python /opt/mms-agent/agent.py > /var/log/mongodb/agent.log 2>&1 &
